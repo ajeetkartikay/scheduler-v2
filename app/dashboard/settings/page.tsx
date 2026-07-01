@@ -17,16 +17,29 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { useSession } from 'next-auth/react'
 import { mockUser, timezones } from '@/lib/mock-data'
 import { toast } from 'sonner'
 
 export default function SettingsPage() {
+  const { data: session } = useSession()
   const [profile, setProfile] = React.useState({
     name: mockUser.name,
     email: mockUser.email,
     username: 'alexjohnson',
     bio: 'Product designer and scheduling enthusiast.',
   })
+
+  React.useEffect(() => {
+    if (session?.user) {
+      setProfile({
+        name: session.user.name ?? mockUser.name,
+        email: session.user.email ?? mockUser.email,
+        username: (session.user.name ?? 'user').toLowerCase().replace(/\s+/g, ''),
+        bio: 'Product designer and scheduling enthusiast.',
+      })
+    }
+  }, [session])
 
   const [notifications, setNotifications] = React.useState({
     emailBookings: true,
@@ -100,9 +113,9 @@ export default function SettingsPage() {
               {/* Avatar */}
               <div className="flex items-center gap-4">
                 <Avatar className="size-20">
-                  <AvatarImage src={mockUser.avatar} />
+                  <AvatarImage src={session?.user?.image ?? mockUser.avatar} />
                   <AvatarFallback className="bg-muted text-lg">
-                    {mockUser.name.split(' ').map(n => n[0]).join('')}
+                    {profile.name.split(' ').map(n => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div>

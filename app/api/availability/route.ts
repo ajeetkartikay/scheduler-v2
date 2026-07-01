@@ -9,6 +9,7 @@ import {
 } from '@/lib/booking-helpers'
 import { DEFAULT_USER_ID, getOrCreateDefaultUser, getPrismaClient } from '@/lib/prisma'
 import { parseHHMMToMinutes } from '@/lib/slots'
+import { auth } from '@/auth'
 import type { AvailabilitySchedule } from '@/lib/types'
 
 export const runtime = 'nodejs'
@@ -96,7 +97,7 @@ function normalizeIncomingSchedules(input: any): Array<{
   ]
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   await getOrCreateDefaultUser()
   const prisma = getPrismaClient()
   if (!prisma) {
@@ -123,14 +124,43 @@ export async function GET() {
     })
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: DEFAULT_USER_ID },
+  // If called from a public booking page with eventSlug, return that event owner's availability.
+  // Otherwise return the authenticated user's availability (dashboard use).
+  const url = new URL(request.url)
+  const eventSlug = url.searchParams.get('eventSlug')
+
+  let userId = DEFAULT_USER_ID
+  if (eventSlug) {
+    const eventType = await prisma.eventType.findUnique({
+      where: { slug: eventSlug },
+      select: { userId: true },
+    })
+    if (eventType) userId = eventType.userId
+  } else {
+    const session = await auth()
+    if (session?.user?.id) userId = session.user.id
+  }
+
+  let user = await prisma.user.findUnique({
+    where: { id: userId },
     select: { timezone: true, activeAvailabilitySchedule: true },
   })
-  const rows = await prisma.availability.findMany({
-    where: { userId: DEFAULT_USER_ID },
+  let rows = await prisma.availability.findMany({
+    where: { userId },
     orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
   })
+
+  // Backward compat: if the resolved user has no availability, fall back to DEFAULT_USER_ID
+  if (rows.length === 0 && userId !== DEFAULT_USER_ID) {
+    user = await prisma.user.findUnique({
+      where: { id: DEFAULT_USER_ID },
+      select: { timezone: true, activeAvailabilitySchedule: true },
+    })
+    rows = await prisma.availability.findMany({
+      where: { userId: DEFAULT_USER_ID },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    })
+  }
 
   const schedules = mapAvailabilityRowsToSchedules(rows, user?.activeAvailabilitySchedule ?? 'Default Schedule')
   const activeSchedule = schedules.find((schedule) => schedule.isActive) ?? schedules[0] ?? null
@@ -232,8 +262,11 @@ export async function PUT(request: Request) {
       ? body.activeScheduleName
       : schedules.find((schedule) => schedule.isActive)?.name ?? schedules[0].name
 
+  const session = await auth()
+  const putUserId = session?.user?.id ?? DEFAULT_USER_ID
+
   // Replace full weekly availability.
-  await prisma.availability.deleteMany({ where: { userId: DEFAULT_USER_ID } })
+  await prisma.availability.deleteMany({ where: { userId: putUserId } })
 
   const createData: Array<{
     dayOfWeek: number
@@ -282,13 +315,13 @@ export async function PUT(request: Request) {
         startTime: d.startTime,
         endTime: d.endTime,
         scheduleName: d.scheduleName,
-        userId: DEFAULT_USER_ID,
+        userId: putUserId,
       })),
     })
   }
 
   await prisma.user.update({
-    where: { id: DEFAULT_USER_ID },
+    where: { id: putUserId },
     data: { timezone, activeAvailabilitySchedule: activeScheduleName },
   })
 

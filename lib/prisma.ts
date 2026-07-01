@@ -10,7 +10,11 @@ function createPrisma(): PrismaClient | null {
   if (!connectionString) return null
 
   // Prisma v7+ requires a driver adapter for Postgres.
-  const adapter = new PrismaPg({ connectionString })
+  // Pass ssl: true so Railway's PostgreSQL accepts the connection.
+  const adapter = new PrismaPg({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+  })
   return new PrismaClient({ adapter })
 }
 
@@ -21,16 +25,18 @@ export function getPrismaClient(): PrismaClient | null {
   return created
 }
 
+// Named export used by auth.ts (Auth.js Prisma Adapter needs a PrismaClient)
+export const prisma = (getPrismaClient() ?? new PrismaClient()) as PrismaClient
+
 // Avoid creating multiple Prisma instances during development HMR.
 export async function getOrCreateDefaultUser() {
-  const prisma = getPrismaClient()
-  if (!prisma) return null
+  const client = getPrismaClient()
+  if (!client) return null
 
   // Single-user setup per requirements.
-  return prisma.user.upsert({
+  return client.user.upsert({
     where: { id: DEFAULT_USER_ID },
     update: {},
     create: { id: DEFAULT_USER_ID },
   })
 }
-

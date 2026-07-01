@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
 import { DEFAULT_USER_ID, getOrCreateDefaultUser, getPrismaClient } from '@/lib/prisma'
+import { auth } from '@/auth'
 import { parseHHMMToMinutes, formatMinutesToHHMM } from '@/lib/slots'
 import {
   availabilityRangesFromWeeklyAndOverrides,
@@ -146,8 +147,12 @@ export async function GET(request: Request) {
   const dateStr = url.searchParams.get('date')
   const status = url.searchParams.get('status')
 
+  const session = await auth()
+  const userId = session?.user?.id
+  const userIds = userId ? [userId, DEFAULT_USER_ID] : [DEFAULT_USER_ID]
+
   const where: any = {
-    eventType: { userId: DEFAULT_USER_ID },
+    eventType: { userId: { in: userIds } },
   }
 
   if (eventSlug) {
@@ -268,7 +273,7 @@ export async function POST(request: Request) {
       startTime: minutesToTimeOnlyDate(startMinutes),
       endTime: minutesToTimeOnlyDate(endMinutes),
       notes,
-      answers: answers.map((answer) => {
+      answers: answers.map((answer: { questionId: string; value: string }) => {
         const question = (eventType.questions ?? []).find((q) => q.id === answer.questionId)
         return {
           questionId: answer.questionId,
@@ -316,23 +321,24 @@ export async function POST(request: Request) {
       },
     },
   })
-  if (!eventType || eventType.userId !== DEFAULT_USER_ID) {
+  if (!eventType) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
 
   const eventTypeDto = mapDbEventTypeToDto(eventType)
+  const ownerId = eventType.userId
 
   const questionError = validateAnswers(eventType.bookingQuestions, answers)
   if (questionError) {
     return NextResponse.json({ error: questionError }, { status: 400 })
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: DEFAULT_USER_ID },
+  const owner = await prisma.user.findUnique({
+    where: { id: ownerId },
     select: { timezone: true, activeAvailabilitySchedule: true },
   })
-  const timezone = user?.timezone ?? 'America/New_York'
-  const activeScheduleName = user?.activeAvailabilitySchedule ?? 'Default Schedule'
+  const timezone = owner?.timezone ?? 'America/New_York'
+  const activeScheduleName = owner?.activeAvailabilitySchedule ?? 'Default Schedule'
 
   const startMinutes = parseHHMMToMinutes(startTime)
   const endMinutes = startMinutes + eventType.duration
@@ -347,11 +353,11 @@ export async function POST(request: Request) {
   // Validate the slot fits inside weekly availability.
   const dayOfWeek = getDayOfWeekFromDateString(date)
   const availabilityRows = await prisma.availability.findMany({
-    where: { userId: DEFAULT_USER_ID, dayOfWeek, scheduleName: activeScheduleName },
+    where: { userId: ownerId, dayOfWeek, scheduleName: activeScheduleName },
   })
 
   const overrideRows = await prisma.dateOverride.findMany({
-    where: { userId: DEFAULT_USER_ID, date: dateStringToUtcDate(date) },
+    where: { userId: ownerId, date: dateStringToUtcDate(date) },
     orderBy: { startTime: 'asc' },
   })
 
@@ -418,7 +424,7 @@ export async function POST(request: Request) {
       status: 'confirmed',
       eventTypeId: eventType.id,
       answers: {
-        create: answers.map((answer) => ({
+        create: answers.map((answer: { questionId: string; value: string }) => ({
           bookingQuestionId: answer.questionId,
           value: answer.value,
         })),
@@ -519,7 +525,10 @@ export async function DELETE(request: Request) {
     },
   })
 
-  if (!booking || booking.eventType.userId !== DEFAULT_USER_ID) {
+  const cancelSession = await auth()
+  const cancelUserId = cancelSession?.user?.id
+  const cancelUserIds = cancelUserId ? [cancelUserId, DEFAULT_USER_ID] : [DEFAULT_USER_ID]
+  if (!booking || !cancelUserIds.includes(booking.eventType.userId)) {
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
   }
 

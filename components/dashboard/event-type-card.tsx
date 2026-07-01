@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils'
 import type { EventType } from '@/lib/types'
 import { mockUser } from '@/lib/mock-data'
+import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 
 interface EventTypeCardProps {
@@ -27,8 +28,10 @@ interface EventTypeCardProps {
 export function EventTypeCard({ eventType, onEdit, onDelete }: EventTypeCardProps) {
   const [copied, setCopied] = useState(false)
   const [enabled, setEnabled] = useState(true)
+  const { data: session } = useSession()
 
-  const username = mockUser.name.toLowerCase().replace(' ', '')
+  const userName = session?.user?.name ?? mockUser.name
+  const username = userName.toLowerCase().replace(/\s+/g, '')
 
   const handleCopyLink = async () => {
     if (typeof window === 'undefined') return

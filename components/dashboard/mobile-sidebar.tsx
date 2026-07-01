@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 import {
   CalendarDays,
   Clock,
@@ -34,7 +35,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { mockUser } from '@/lib/mock-data'
 import { toast } from 'sonner'
 
 const mainNavItems = [
@@ -53,10 +53,16 @@ const advancedNavItems = [
 
 export function MobileSidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const [open, setOpen] = React.useState(false)
 
+  const userName = session?.user?.name ?? 'User'
+  const userEmail = session?.user?.email ?? ''
+  const userImage = session?.user?.image ?? ''
+  const userSlug = userName.toLowerCase().replace(/\s+/g, '')
+
   const copyPublicLink = () => {
-    const link = `${window.location.origin}/${mockUser.name.toLowerCase().replace(' ', '')}`
+    const link = `${window.location.origin}/${userSlug}`
     navigator.clipboard.writeText(link)
     toast.success('Public link copied to clipboard')
     setOpen(false)
@@ -80,26 +86,48 @@ export function MobileSidebar() {
                 className="h-auto justify-start gap-2.5 px-2 py-1.5 hover:bg-sidebar-accent/50"
               >
                 <Avatar className="size-7">
-                  <AvatarImage src={mockUser.avatar} alt={mockUser.name} />
+                  <AvatarImage src={userImage} alt={userName} />
                   <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs">
-                    {mockUser.name
+                    {userName
                       .split(' ')
-                      .map((n) => n[0])
-                      .join('')}
+                      .map((n: string) => n[0])
+                      .join('')
+                      .toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-sidebar-foreground">
-                  {mockUser.name}
-                </span>
+                <div className="flex flex-col items-start min-w-0">
+                  <span className="text-sm font-medium text-sidebar-foreground truncate max-w-[150px]">
+                    {userName}
+                  </span>
+                  {userEmail && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                      {userEmail}
+                    </span>
+                  )}
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem>
-                <Settings className="mr-2 size-4" />
-                Settings
+              {session?.user && (
+                <>
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium">{userName}</p>
+                    <p className="text-xs text-muted-foreground">{userEmail}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/settings" onClick={() => setOpen(false)}>
+                  <Settings className="mr-2 size-4" />
+                  Settings
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive cursor-pointer"
+                onClick={() => signOut({ callbackUrl: '/' })}
+              >
                 <LogOut className="mr-2 size-4" />
                 Sign out
               </DropdownMenuItem>
@@ -166,7 +194,7 @@ export function MobileSidebar() {
         {/* Bottom Actions */}
         <div className="border-t border-sidebar-border p-3 space-y-1">
           <Link
-            href={`/${mockUser.name.toLowerCase().replace(' ', '')}`}
+            href={`/${userSlug}`}
             target="_blank"
             onClick={() => setOpen(false)}
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"

@@ -120,14 +120,15 @@ export async function POST(request: Request) {
     },
   })
 
-  if (!eventType || eventType.userId !== DEFAULT_USER_ID) {
+  if (!eventType) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
 
   const eventTypeDto = mapDbEventTypeToDto(eventType)
+  const ownerId = eventType.userId
 
   const user = await prisma.user.findUnique({
-    where: { id: DEFAULT_USER_ID },
+    where: { id: ownerId },
     select: { timezone: true, activeAvailabilitySchedule: true },
   })
   const timezone = user?.timezone ?? 'America/New_York'
@@ -136,11 +137,11 @@ export async function POST(request: Request) {
   const dayOfWeek = getDayOfWeekFromDateString(date)
 
   const availabilityRows = await prisma.availability.findMany({
-    where: { userId: DEFAULT_USER_ID, dayOfWeek, scheduleName: activeScheduleName },
+    where: { userId: ownerId, dayOfWeek, scheduleName: activeScheduleName },
   })
 
   const overrideRows = await prisma.dateOverride.findMany({
-    where: { userId: DEFAULT_USER_ID, date: dateStringToUtcDate(date) },
+    where: { userId: ownerId, date: dateStringToUtcDate(date) },
     orderBy: { startTime: 'asc' },
   })
 

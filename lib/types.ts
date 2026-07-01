@@ -1,3 +1,9 @@
+export interface EventOwner {
+  name: string
+  image?: string | null
+  timezone?: string | null
+}
+
 export interface EventType {
   id: string
   title: string
@@ -8,6 +14,7 @@ export interface EventType {
   bufferBeforeMinutes?: number
   bufferAfterMinutes?: number
   questions?: BookingQuestion[]
+  owner?: EventOwner
 }
 
 export interface TimeSlot {

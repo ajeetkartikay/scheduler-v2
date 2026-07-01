@@ -25,8 +25,8 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useSchedulingStore } from '@/lib/store'
-import { mockUser, timezones } from '@/lib/mock-data'
-import type { EventType } from '@/lib/types'
+import { timezones } from '@/lib/mock-data'
+import type { EventOwner, EventType } from '@/lib/types'
 import type { GeneratedSlot } from '@/lib/slots'
 import { toast } from 'sonner'
 
@@ -49,6 +49,7 @@ export default function EventBookingPage({
   const [selectedStartTime, setSelectedStartTime] = React.useState<string | null>(null)
   const [availableSlots, setAvailableSlots] = React.useState<GeneratedSlot[]>([])
   const [apiEventType, setApiEventType] = React.useState<EventType | null>(null)
+  const [eventOwner, setEventOwner] = React.useState<EventOwner | null>(null)
   const [eventTypeHydrated, setEventTypeHydrated] = React.useState(false)
   const [availabilityHydrated, setAvailabilityHydrated] = React.useState(false)
   const [enabledDays, setEnabledDays] = React.useState<boolean[]>([false, false, false, false, false, false, false])
@@ -86,7 +87,9 @@ export default function EventBookingPage({
           bufferBeforeMinutes: et.bufferBeforeMinutes ?? 0,
           bufferAfterMinutes: et.bufferAfterMinutes ?? 0,
           questions: et.questions ?? [],
+          owner: et.owner,
         })
+        if (et.owner) setEventOwner(et.owner)
       } catch {
         // Keep mock fallback if backend isn't reachable.
       } finally {
@@ -96,7 +99,7 @@ export default function EventBookingPage({
 
     async function loadAvailability() {
       try {
-        const res = await fetch('/api/availability')
+        const res = await fetch(`/api/availability?eventSlug=${encodeURIComponent(eventSlug)}`)
         if (!res.ok) return
         const data = (await res.json()) as {
           availability: Array<{ dayOfWeek: number; enabled: boolean }>
@@ -359,16 +362,26 @@ export default function EventBookingPage({
           <div className="grid lg:grid-cols-[300px_1fr]">
             {/* Event Info Sidebar */}
             <div className="border-b border-border p-6 lg:border-b-0 lg:border-r">
-              <Avatar className="size-12">
-                <AvatarImage src={mockUser.avatar} alt={mockUser.name} />
-                <AvatarFallback className="bg-muted text-muted-foreground">
-                  {mockUser.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </AvatarFallback>
-              </Avatar>
-              <p className="mt-3 text-sm text-muted-foreground">{mockUser.name}</p>
+              {(() => {
+                const ownerName = eventOwner?.name || username
+                const ownerImage = eventOwner?.image || null
+                const ownerInitials = ownerName
+                  .split(' ')
+                  .map((n: string) => n[0])
+                  .join('')
+                  .toUpperCase()
+                return (
+                  <>
+                    <Avatar className="size-12">
+                      <AvatarImage src={ownerImage ?? ''} alt={ownerName} />
+                      <AvatarFallback className="bg-muted text-muted-foreground">
+                        {ownerInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="mt-3 text-sm text-muted-foreground">{ownerName}</p>
+                  </>
+                )
+              })()}
               <h1 className="mt-1 text-xl font-semibold text-foreground">
                 {eventType.title}
               </h1>

@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { CalendarDays, Clock, Users, TrendingUp, ArrowRight } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useSession } from 'next-auth/react'
 import { useSchedulingStore } from '@/lib/store'
 import { mockUser } from '@/lib/mock-data'
 
 export default function DashboardPage() {
+  const { data: session } = useSession()
   const { eventTypes, bookings } = useSchedulingStore()
   
   const upcomingBookings = bookings
@@ -41,12 +43,14 @@ export default function DashboardPage() {
     },
   ]
 
+  const userName = session?.user?.name ?? mockUser.name
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Welcome back, {mockUser.name.split(' ')[0]}
+          Welcome back, {userName.split(' ')[0]}
         </h1>
         <p className="mt-1 text-muted-foreground">
           Here&apos;s an overview of your scheduling activity.

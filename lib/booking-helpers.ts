@@ -216,6 +216,13 @@ export function mapDbEventTypeToDto(eventType: any): EventType & { userId?: stri
         required: q.required,
         options: parseQuestionOptions(q.optionsJson),
       })),
+    owner: eventType.user
+      ? {
+          name: eventType.user.name ?? '',
+          image: eventType.user.image ?? null,
+          timezone: eventType.user.timezone ?? null,
+        }
+      : undefined,
   }
 }
 

@@ -6,8 +6,8 @@ import { CalendarDays, Clock, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useSchedulingStore } from '@/lib/store'
-import { mockUser } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
+import type { EventType } from '@/lib/types'
 
 const colorPalette = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-purple-500']
 
@@ -17,38 +17,58 @@ export default function UserBookingPage({
   params: Promise<{ username: string }>
 }) {
   const { username } = React.use(params)
-  const { eventTypes, setEventTypes } = useSchedulingStore()
+  const { setEventTypes } = useSchedulingStore()
+
+  const [profileUser, setProfileUser] = React.useState<{
+    name: string
+    image: string | null
+    timezone: string | null
+  } | null>(null)
+  const [pageEventTypes, setPageEventTypes] = React.useState<EventType[]>([])
+  const [loaded, setLoaded] = React.useState(false)
 
   React.useEffect(() => {
     let cancelled = false
 
-    async function loadEventTypes() {
+    async function loadProfile() {
       try {
-        const res = await fetch('/api/event-types', { method: 'GET' })
+        const res = await fetch(`/api/public/profile?username=${encodeURIComponent(username)}`)
         if (!res.ok) return
-        const data = (await res.json()) as { eventTypes: any[] }
+        const data = (await res.json()) as {
+          user: { name: string; image: string | null; timezone: string | null }
+          eventTypes: any[]
+        }
 
-        const mapped = data.eventTypes.map((et, i) => ({
+        const mapped: EventType[] = data.eventTypes.map((et, i) => ({
           id: et.id,
           title: et.title,
           description: et.description,
           duration: et.duration,
           slug: et.slug,
-          userId: et.userId,
-          color: colorPalette[i % colorPalette.length],
+          color: et.color ?? colorPalette[i % colorPalette.length],
+          bufferBeforeMinutes: et.bufferBeforeMinutes ?? 0,
+          bufferAfterMinutes: et.bufferAfterMinutes ?? 0,
+          questions: et.questions ?? [],
+          owner: et.owner,
         }))
 
-        if (!cancelled) setEventTypes(mapped)
+        if (!cancelled) {
+          setProfileUser(data.user)
+          setPageEventTypes(mapped)
+          setEventTypes(mapped)
+        }
       } catch {
-        // Keep mock UI state if backend isn't reachable/configured.
+        // Keep empty state if backend isn't reachable.
+      } finally {
+        if (!cancelled) setLoaded(true)
       }
     }
 
-    loadEventTypes()
+    loadProfile()
     return () => {
       cancelled = true
     }
-  }, [setEventTypes])
+  }, [username, setEventTypes])
 
   const colorMap: Record<string, string> = {
     'bg-blue-500': 'bg-blue-500',
@@ -58,22 +78,27 @@ export default function UserBookingPage({
     'bg-purple-500': 'bg-purple-500',
   }
 
+  const displayName = profileUser?.name ?? username
+  const displayImage = profileUser?.image ?? null
+  const initials = displayName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="mx-auto max-w-3xl px-4 py-12 text-center">
           <Avatar className="mx-auto size-24 border-4 border-background shadow-lg">
-            <AvatarImage src={mockUser.avatar} alt={mockUser.name} />
+            <AvatarImage src={displayImage ?? ''} alt={displayName} />
             <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-              {mockUser.name
-                .split(' ')
-                .map((n) => n[0])
-                .join('')}
+              {initials}
             </AvatarFallback>
           </Avatar>
           <h1 className="mt-4 text-2xl font-semibold text-foreground">
-            {mockUser.name}
+            {displayName}
           </h1>
           <p className="mt-1 text-muted-foreground">
             Select an event type to schedule a meeting
@@ -83,7 +108,11 @@ export default function UserBookingPage({
 
       {/* Event Types */}
       <div className="mx-auto max-w-3xl px-4 py-8">
-        {eventTypes.length === 0 ? (
+        {!loaded ? (
+          <div className="flex justify-center py-12">
+            <div className="text-sm text-muted-foreground">Loading…</div>
+          </div>
+        ) : pageEventTypes.length === 0 ? (
           <Card className="border-border">
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <CalendarDays className="size-12 text-muted-foreground" />
@@ -97,7 +126,7 @@ export default function UserBookingPage({
           </Card>
         ) : (
           <div className="grid gap-4">
-            {eventTypes.map((eventType) => (
+            {pageEventTypes.map((eventType) => (
               <Link
                 key={eventType.id}
                 href={`/${username}/${eventType.slug}`}

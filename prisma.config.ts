@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url'
 import { defineConfig } from 'prisma/config'
 
 // Ensure local `.env` is loaded even when Prisma CLI doesn't auto-load it.
-// Prisma may run with a different cwd, so use an explicit path.
 const __dirname = dirname(fileURLToPath(import.meta.url))
 loadEnv({ path: `${__dirname}/.env` })
 
@@ -19,4 +18,3 @@ export default defineConfig({
     url: databaseUrl,
   },
 })
-

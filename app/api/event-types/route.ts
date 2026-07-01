@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { NextResponse } from 'next/server'
 import { DEFAULT_USER_ID, getOrCreateDefaultUser, getPrismaClient } from '@/lib/prisma'
 import { buildMockEventTypeStore, mapDbEventTypeToDto } from '@/lib/booking-helpers'
+import { auth } from '@/auth'
 import type { BookingQuestion } from '@/lib/types'
 
 export const runtime = 'nodejs'
@@ -87,8 +88,14 @@ export async function GET() {
     const eventTypes = getMockEventTypeStore().slice().sort((a, b) => b.id.localeCompare(a.id))
     return NextResponse.json({ eventTypes })
   }
+
+  const session = await auth()
+  const userId = session?.user?.id
+  // Show the authenticated user's events + DEFAULT_USER_ID events for backward compat
+  const userIds = userId ? [userId, DEFAULT_USER_ID] : [DEFAULT_USER_ID]
+
   const eventTypes = await prisma.eventType.findMany({
-    where: { userId: DEFAULT_USER_ID },
+    where: { userId: { in: userIds } },
     orderBy: { createdAt: 'desc' },
     include: {
       bookingQuestions: {
@@ -145,6 +152,9 @@ export async function POST(request: Request) {
   const data = parsed.data
   const slug = data.slug ?? slugify(data.title)
 
+  const session = await auth()
+  const userId = session?.user?.id ?? DEFAULT_USER_ID
+
   try {
     const created = await prisma.eventType.create({
       data: {
@@ -155,7 +165,7 @@ export async function POST(request: Request) {
         color: data.color ?? 'bg-blue-500',
         bufferBeforeMinutes: data.bufferBeforeMinutes,
         bufferAfterMinutes: data.bufferAfterMinutes,
-        userId: DEFAULT_USER_ID,
+        userId,
         bookingQuestions: {
           create: data.questions.map((question, index) => ({
             label: question.label,
@@ -233,10 +243,13 @@ export async function PUT(request: Request) {
   const data = parsed.data
   const slug = data.slug ?? slugify(data.title)
 
+  const session = await auth()
+  const userId = session?.user?.id
+  const userIds = userId ? [userId, DEFAULT_USER_ID] : [DEFAULT_USER_ID]
+
   try {
-    // Ensure we only update the default user's record.
     const updated = await prisma.eventType.updateMany({
-      where: { id: data.id, userId: DEFAULT_USER_ID },
+      where: { id: data.id, userId: { in: userIds } },
       data: {
         title: data.title,
         description: data.description,
@@ -319,8 +332,12 @@ export async function DELETE(request: Request) {
 
   const { id } = parsed.data
 
+  const session = await auth()
+  const userId = session?.user?.id
+  const userIds = userId ? [userId, DEFAULT_USER_ID] : [DEFAULT_USER_ID]
+
   const deleted = await prisma.eventType.deleteMany({
-    where: { id, userId: DEFAULT_USER_ID },
+    where: { id, userId: { in: userIds } },
   })
 
   if (deleted.count === 0) {
