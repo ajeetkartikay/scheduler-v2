@@ -1,100 +1,153 @@
-# CalFinal
+<div align="center">
 
-A booking and scheduling application built with Next.js, Prisma, PostgreSQL, and Tailwind CSS. This project supports event type management, availability setup, booking workflows, and integrations with Vercel deployments.
+# 📅 CalFinal
 
-## Key Features
+**A modern booking and scheduling application**
 
-- Next.js 16 application with app router and server-side API routes
-- Prisma ORM with PostgreSQL database support
-- Event type creation, booking questions, and availability management
-- Responsive dashboard experience with reusable UI components
-- Built with `pnpm` and modern TypeScript tooling
+Built with Next.js, Prisma, PostgreSQL, and Tailwind CSS — inspired by the simplicity of Cal.com.
 
-## Repository Structure
+[**🚀 Live Demo**](https://scheduler-v2-six.vercel.app/)
 
-- `app/` - Next.js pages, layouts, and API routes
-- `components/` - UI and dashboard components
-- `lib/` - shared utilities, Prisma client, and booking helpers
-- `prisma/` - Prisma schema and migrations
-- `public/` - static assets
-- `styles/` - global styles
+</div>
 
-## Getting Started
+---
+
+## ✨ Overview
+
+CalFinal is a full-stack scheduling platform that lets users create event types, manage availability, and let others book time with them — without the back-and-forth of email scheduling. Built on the Next.js App Router with a Prisma + PostgreSQL backend, it's designed to be fast, type-safe, and easy to self-host.
+
+## 🔑 Key Features
+
+- 🗓️ **Event Type Management** — Create and customize bookable event types with configurable durations and questions
+- ⏰ **Availability Management** — Define working hours and time-slot availability per user
+- 🔐 **Google OAuth Authentication** — Secure sign-in powered by NextAuth
+- 📊 **Dashboard Experience** — Responsive, reusable UI components for managing bookings, event types, and settings
+- ⚡ **Modern Stack** — Next.js 16 App Router, server-side API routes, and Prisma ORM for type-safe database access
+- ☁️ **Production-Ready Deployment** — Pre-configured for one-click deployment on Vercel
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | [Next.js 16](https://nextjs.org/) (App Router) |
+| Database | PostgreSQL |
+| ORM | [Prisma](https://www.prisma.io/) v7 with `@prisma/adapter-pg` |
+| Styling | [Tailwind CSS](https://tailwindcss.com/) |
+| Auth | [NextAuth](https://authjs.dev/) (Google OAuth) |
+| Package Manager | [pnpm](https://pnpm.io/) |
+| Language | TypeScript |
+| Deployment | [Vercel](https://vercel.com/) |
+
+## 📁 Repository Structure
+
+```
+├── app/          # Next.js pages, layouts, and API routes
+├── components/   # UI and dashboard components
+├── lib/          # Shared utilities, Prisma client, and booking helpers
+├── prisma/       # Prisma schema and migrations
+├── public/       # Static assets
+└── styles/       # Global styles
+```
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 20+ or compatible runtime
-- `pnpm` package manager
-- PostgreSQL database or Railway database
+- Node.js 20+ (or a compatible runtime)
+- [pnpm](https://pnpm.io/installation) package manager
+- A PostgreSQL database (e.g. [Neon](https://neon.tech), [Railway](https://railway.app), or local Postgres)
 
-### Local setup
+### Local Setup
 
-1. Install dependencies:
+**1. Clone the repository**
+```bash
+git clone https://github.com/ajeetkartikay/scheduler-v2.git
+cd scheduler-v2
+```
 
+**2. Install dependencies**
 ```bash
 pnpm install
 ```
 
-2. Copy environment variables:
-
+**3. Set up environment variables**
 ```bash
 cp .env.example .env
 ```
 
-3. Update `.env` with your actual database connection string:
-
+Update `.env` with your actual values:
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+AUTH_GOOGLE_ID=your_google_client_id
+AUTH_GOOGLE_SECRET=your_google_client_secret
+AUTH_SECRET=your_generated_secret
+AUTH_URL=http://localhost:3000
 ```
 
-4. Approve any required pnpm build scripts (if prompted):
-
+**4. Approve required build scripts (if prompted)**
 ```bash
 pnpm approve-builds
 ```
 
-5. Generate Prisma client:
-
+**5. Generate the Prisma client**
 ```bash
 npx prisma generate
 ```
 
-6. Push the database schema:
-
+**6. Push the database schema**
 ```bash
 npx prisma db push
 ```
 
-7. Run the development server:
-
+**7. Run the development server**
 ```bash
 pnpm dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser. 🎉
 
-## Scripts
+## 📜 Available Scripts
 
-- `pnpm dev` - Run the development server
-- `pnpm build` - Create a production build
-- `pnpm start` - Start the production server
-- `pnpm lint` - Run ESLint
+| Command | Description |
+|---|---|
+| `pnpm dev` | Run the development server |
+| `pnpm build` | Create a production build |
+| `pnpm start` | Start the production server |
+| `pnpm lint` | Run ESLint |
 
-## Deployment
+## ☁️ Deployment
 
-This project is configured for deployment on Vercel.
+CalFinal is configured for seamless deployment on [Vercel](https://vercel.com):
 
-- Ensure `DATABASE_URL` is configured in Vercel project environment variables.
-- If using Railway or another managed PostgreSQL provider, use the provider's connection string.
-- Build command: `pnpm build`
-- Output directory: handled by Next.js
+1. Import this repository into Vercel
+2. Add the required environment variables in **Project Settings → Environment Variables**:
+   - `DATABASE_URL`
+   - `AUTH_GOOGLE_ID`
+   - `AUTH_GOOGLE_SECRET`
+   - `AUTH_SECRET`
+   - `AUTH_URL` (your production URL, e.g. `https://your-app.vercel.app`)
+3. Update your Google OAuth client's **Authorized redirect URIs** to include:
+   ```
+   https://your-app.vercel.app/api/auth/callback/google
+   ```
+4. Build command: `pnpm build` · Output: handled automatically by Next.js
 
-## Notes
+> If using Railway or another managed PostgreSQL provider, use their provided connection string for `DATABASE_URL`.
 
-- The project uses Prisma v7 and requires a PostgreSQL adapter (`@prisma/adapter-pg`).
-- Keep `.env` local and do not commit secrets.
-- Use `.env.example` as a template for required environment variables.
+## 📝 Notes
 
-## License
+- This project uses **Prisma v7** and requires the PostgreSQL adapter (`@prisma/adapter-pg`)
+- Never commit your `.env` file — keep secrets local
+- Use `.env.example` as the template for required environment variables
 
-This repository is provided as-is. Update the license section if you add licensing terms.
+## 📄 License
+
+This repository is provided as-is. Update this section if you add formal licensing terms.
+
+---
+
+<div align="center">
+
+Built by [Ajeet Kumar](https://github.com/ajeetkartikay)
+
+</div>
